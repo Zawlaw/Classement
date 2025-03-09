@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Teacher {
+  id        Int       @id @default(autoincrement())  // Identifiant unique
+  name      String    // Nom de l'enseignant
+  votes     Int       @default(0)  // Nombre de votes
+  subject   String    // Matière enseignée
+  votesList Vote[]    // Liste des votes associés à l'enseignant
+}
+
+model Vote {
+  id        Int     @id @default(autoincrement()) // Identifiant du vote
+  teacherId Int     // Référence à l'enseignant
+  userHash  String  @unique // Identifiant unique pour l'utilisateur qui a voté
+  teacher   Teacher @relation(fields: [teacherId], references: [id]) // Relation vers l'enseignant
+}
+
+model Message {
+  id        Int      @id @default(autoincrement()) // Identifiant du message
+  content   String   // Contenu du message
+  senderId  Int      // Référence à l'expéditeur (utilisateur)
+  createdAt DateTime @default(now()) // Date de création
+  sender    User     @relation(fields: [senderId], references: [id]) // Relation vers l'utilisateur
+}
+
+model User {
+  id        Int       @id @default(autoincrement())  // Identifiant de l'utilisateur
+  username  String    @unique  // Pseudo de l'utilisateur
+  messages  Message[] // Liste des messages envoyés par l'utilisateur
+}
