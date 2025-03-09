@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../../lib/prisma';
 
 export async function GET() {
   try {
@@ -11,6 +9,9 @@ export async function GET() {
     return NextResponse.json(teachers);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erreur lors de la récupération des professeurs' },
+      { status: 500 }
+    );
   }
 }

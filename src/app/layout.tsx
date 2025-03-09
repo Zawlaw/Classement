@@ -15,18 +15,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Classement des Professeurs",
   description: "Classement des Professeurs Descartes",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
     </html>

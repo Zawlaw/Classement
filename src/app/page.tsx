@@ -20,17 +20,16 @@ export default function Home() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([]);
   const [voted, setVoted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [pseudo, setPseudo] = useState('');
   const [message, setMessage] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [voteMessage, setVoteMessage] = useState<string | null>(null);
-  const [chatMessageError, setChatMessageError] = useState<string | null>(null);
-  const [chatMessageSuccess, setChatMessageSuccess] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [showMessageSent, setShowMessageSent] = useState(false);
+  const [showVoteSuccess, setShowVoteSuccess] = useState(false);
+  const [showVoteError, setShowVoteError] = useState(false);
 
   const subjectEmojis: { [key: string]: string } = {
     'Sciences de la Vie et de la Terre': '🌱',
@@ -49,27 +48,29 @@ export default function Home() {
     'Management et Gestion': '📈',
     'Chinois LV3': '🇨🇳',
     'Allemand LV2': '🇩🇪',
-    'Humanités, Littérature et Philosophie': '📖',
+    'Français': '📖',
   };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [teachersRes, voteRes, messagesRes] = await Promise.all([ 
-          fetch('/api/teachers'), 
-          fetch('/api/user-vote'), 
-          fetch('/api/messages'), 
+        const [teachersRes, voteRes, messagesRes] = await Promise.all([
+          fetch('/api/teachers'),
+          fetch('/api/user-vote'),
+          fetch('/api/messages'),
         ]);
         const [teachersData, voteData, messagesData] = await Promise.all([
           teachersRes.json(),
           voteRes.json(),
           messagesRes.json(),
         ]);
-        setTeachers(teachersData);
+        // S'assurer que teachersData est bien un tableau
+        setTeachers(Array.isArray(teachersData) ? teachersData : []);
         setVoted(voteData.voted);
-        setChatMessages(messagesData);
-      } catch {
-        setError('Impossible de récupérer les données');
+        // S'assurer que messagesData est bien un tableau
+        setChatMessages(Array.isArray(messagesData) ? messagesData : []);
+      } catch (error) {
+        console.error('Impossible de récupérer les données', error);
       }
     };
     fetchData();
@@ -83,13 +84,16 @@ export default function Home() {
             teacher.subject.toLowerCase().includes(search.toLowerCase())) &&
           (selectedSubject ? teacher.subject === selectedSubject : true)
       )
-      .sort((a, b) => (sortOrder === 'desc' ? b.votes - a.votes : a.votes - b.votes));
+      .sort((a, b) =>
+        sortOrder === 'desc' ? b.votes - a.votes : a.votes - b.votes
+      );
     setFilteredTeachers(filteredAndSortedTeachers);
   }, [teachers, search, selectedSubject, sortOrder]);
 
   const vote = async (teacherId: number) => {
     if (voted) {
-      setVoteMessage('Vous avez déjà voté!');
+      setShowVoteError(true);
+      setTimeout(() => setShowVoteError(false), 3000);
       return;
     }
 
@@ -104,15 +108,16 @@ export default function Home() {
       setTeachers((prev) =>
         prev.map((t) => (t.id === teacherId ? { ...t, votes: t.votes + 1 } : t))
       );
-      setVoteMessage('Votre vote a été enregistré !');
+      setShowVoteSuccess(true);
+      setTimeout(() => setShowVoteSuccess(false), 3000);
     } else {
-      setVoteMessage('Erreur lors de l\'enregistrement du vote.');
+      setShowVoteError(true);
+      setTimeout(() => setShowVoteError(false), 3000);
     }
   };
 
   const sendMessage = async () => {
-    if (!pseudo.trim()) return setChatMessageError('Veuillez entrer un pseudonyme.');
-    if (!message.trim()) return setChatMessageError('Veuillez entrer un message.');
+    if (!pseudo.trim() || !message.trim()) return;
 
     const res = await fetch('/api/messages', {
       method: 'POST',
@@ -121,18 +126,23 @@ export default function Home() {
     });
 
     if (res.ok) {
-      const newMessage = { content: message, senderPseudo: pseudo, createdAt: new Date().toISOString() };
+      const newMessage = {
+        content: message,
+        senderPseudo: pseudo,
+        createdAt: new Date().toISOString(),
+      };
       setChatMessages((prev) => [newMessage, ...prev]);
       setMessage('');
-      setChatMessageError(null);
-      setChatMessageSuccess('Votre message a été envoyé.');
-    } else {
-      setChatMessageError('Erreur lors de l\'envoi du message.');
+      setShowMessageSent(true);
+      setTimeout(() => setShowMessageSent(false), 3000);
     }
   };
 
   const totalVotes = teachers.reduce((sum, teacher) => sum + teacher.votes, 0);
-  const subjects = useMemo(() => Array.from(new Set(teachers.map((teacher) => teacher.subject))), [teachers]);
+  const subjects = useMemo(
+    () => Array.from(new Set<string>(teachers.map((teacher) => teacher.subject))),
+    [teachers]
+  );
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -142,14 +152,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
       <div className="text-center mb-8 relative">
-        <motion.h1 
+        <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent mb-2"
         >
           🏆 Classement des Professeurs
         </motion.h1>
-        <p className="text-gray-400 text-sm">Votes anonymes - Lycée Descartes</p>
+        <p className="text-gray-400 text-sm">
+          Votes anonymes - Lycée Descartes
+        </p>
 
         <div className="absolute top-0 right-0 bg-gray-800 px-4 py-2 rounded-full flex items-center gap-2">
           <span className="text-blue-400">Total :</span>
@@ -172,7 +184,9 @@ export default function Home() {
           <motion.button
             key={subject}
             whileHover={{ scale: 1.05 }}
-            onClick={() => setSelectedSubject(subject === selectedSubject ? '' : subject)}
+            onClick={() =>
+              setSelectedSubject(subject === selectedSubject ? '' : subject)
+            }
             className={`px-4 py-2 rounded-full flex items-center gap-2 ${
               subject === selectedSubject
                 ? 'bg-blue-600 text-white'
@@ -187,7 +201,9 @@ export default function Home() {
       <div className="flex justify-center gap-4 mb-8">
         <motion.button
           whileHover={{ scale: 1.05 }}
-          onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+          onClick={() =>
+            setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+          }
           className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center gap-2"
         >
           {sortOrder === 'desc' ? '▼' : '▲'}
@@ -197,8 +213,14 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
         {filteredTeachers.map((teacher, index) => {
-          const rank = sortOrder === 'desc' ? index + 1 : filteredTeachers.length - index;
-          const isTop = sortOrder === 'desc' ? index < 5 : index >= filteredTeachers.length - 5;
+          const rank =
+            sortOrder === 'desc'
+              ? index + 1
+              : filteredTeachers.length - index;
+          const isTop =
+            sortOrder === 'desc'
+              ? index < 5
+              : index >= filteredTeachers.length - 5;
 
           return (
             <motion.div
@@ -206,7 +228,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className={`p-4 rounded-xl ${
-                isTop ? 'bg-gradient-to-br from-yellow-600/20 to-yellow-800/20' : 'bg-gray-800'
+                isTop
+                  ? 'bg-gradient-to-br from-yellow-600/20 to-yellow-800/20'
+                  : 'bg-gray-800'
               } hover:bg-gray-700 transition-colors`}
             >
               <div className="flex justify-between items-start">
@@ -220,14 +244,38 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-green-400">{teacher.votes}</div>
+                  <div className="text-2xl font-bold text-green-400">
+                    {teacher.votes}
+                  </div>
                   {!voted && (
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       onClick={() => vote(teacher.id)}
-                      className="text-sm px-3 py-1 mt-2 bg-blue-600 hover:bg-blue-700 rounded-full"
+                      className="text-sm px-3 py-1 mt-2 bg-blue-600 hover:bg-blue-700 rounded-full relative"
                     >
                       Voter
+                      <AnimatePresence>
+                        {showVoteSuccess && (
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full p-1 text-xs"
+                          >
+                            ✓
+                          </motion.span>
+                        )}
+                        {showVoteError && (
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs"
+                          >
+                            !
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </motion.button>
                   )}
                 </div>
@@ -237,13 +285,17 @@ export default function Home() {
         })}
       </div>
 
+      <footer className="text-center text-gray-500 text-sm mt-12">
+        Toutes les données ont été prises dans l&apos;annuaire de l&apos;établissement
+      </footer>
+
       <div className="fixed bottom-6 right-6 z-50">
         <motion.div
           className="bg-gray-800 rounded-xl shadow-2xl overflow-hidden"
           animate={showChat ? 'open' : 'closed'}
           variants={{
             open: { width: 320, height: 500 },
-            closed: { width: 56, height: 56 }
+            closed: { width: 56, height: 56 },
           }}
         >
           <button
@@ -261,13 +313,17 @@ export default function Home() {
                 className="p-4 h-full flex flex-col"
               >
                 <h3 className="text-lg font-bold mb-4">Chat en direct</h3>
-                
+
                 <div className="flex-1 overflow-y-auto space-y-3 mb-4">
                   {chatMessages.map((msg) => (
                     <div key={msg.createdAt} className="bg-gray-700 p-3 rounded-lg">
                       <div className="flex justify-between text-sm">
-                        <span className="font-medium text-blue-300">{msg.senderPseudo}</span>
-                        <span className="text-gray-400">{formatTime(msg.createdAt)}</span>
+                        <span className="font-medium text-blue-300">
+                          {msg.senderPseudo}
+                        </span>
+                        <span className="text-gray-400">
+                          {formatTime(msg.createdAt)}
+                        </span>
                       </div>
                       <p className="mt-1 text-gray-100">{msg.content}</p>
                     </div>
@@ -293,9 +349,21 @@ export default function Home() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       onClick={sendMessage}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg"
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg relative"
                     >
                       ➔
+                      <AnimatePresence>
+                        {showMessageSent && (
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full p-1 text-xs"
+                          >
+                            ✓
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </motion.button>
                   </div>
                 </div>
