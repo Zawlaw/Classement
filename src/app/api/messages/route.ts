@@ -4,6 +4,8 @@ import prisma from '../../../lib/prisma';
 
 export async function GET() {
   try {
+    await prisma.$connect(); // Connexion explicite
+
     const messages = await prisma.message.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -21,16 +23,26 @@ export async function GET() {
     return NextResponse.json(formattedMessages);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Erreur lors de la récupération des messages" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Erreur lors de la récupération des messages" },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect(); // Déconnexion explicite
   }
 }
 
 export async function POST(req: Request) {
   try {
+    await prisma.$connect(); // Connexion explicite
+
     const { pseudo, message } = await req.json();
 
     if (!pseudo || !message) {
-      return NextResponse.json({ error: "Le pseudo et le message sont requis." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Le pseudo et le message sont requis." },
+        { status: 400 }
+      );
     }
 
     const newMessage = await prisma.message.create({
@@ -56,6 +68,11 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Erreur lors de la création du message." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Erreur lors de la création du message." },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect(); // Déconnexion explicite
   }
 }
